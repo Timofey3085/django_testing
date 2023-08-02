@@ -6,7 +6,6 @@ from pytest_django.asserts import assertRedirects, assertFormError
 from news.forms import BAD_WORDS, WARNING
 
 
-@pytest.mark.parametrize
 def test_user_can_create_note(author_client, author, form_data, slug_for_news):
     '''Тест создания заметки пользователя.'''
     url = reverse('news:detail', args=slug_for_news)
