@@ -47,11 +47,13 @@ class TestNoteEditDelete(TestCase):
     NOTE_TEXT = "Текст"
     NOTE_TITLE = "Заголовок"
     NOTE_SLUG = "Slug"
-    NEW_NOTE_TEXT = "Текст"
+    NEW_NOTE_TEXT = "Новый Текст"
+    NEW_NOTE_TITLE = 'Новый заголовок'
+    NEW_NOTE_SLUG = 'New-Slug'
 
     @classmethod
     def setUpTestData(cls):
-        cls.author = User.objects.create(username='Гендальф')
+        cls.author = User.objects.create(username='Имя Пользователя')
         cls.note = Note.objects.create(title=cls.NOTE_TITLE,
                                        text=cls.NOTE_TEXT,
                                        slug=cls.NOTE_SLUG,
@@ -61,15 +63,15 @@ class TestNoteEditDelete(TestCase):
 
         cls.author_client = Client()
         cls.author_client.force_login(cls.author)
-        cls.reader = User.objects.create(username='Саруман')
+        cls.reader = User.objects.create(username='Имя Читателя')
         cls.reader_client = Client()
         cls.reader_client.force_login(cls.reader)
 
         cls.edit_url = reverse('notes:edit', args=(cls.note.slug,))
         cls.delete_url = reverse('notes:delete', args=(cls.note.slug,))
-        cls.form_data = {'title': cls.NOTE_TITLE,
+        cls.form_data = {'title': cls.NEW_NOTE_TITLE,
                          'text': cls.NEW_NOTE_TEXT,
-                         'slug': cls.NOTE_SLUG,
+                         'slug': cls.NEW_NOTE_SLUG,
                          'author': cls.author}
 
     def test_author_can_delete_note(self):
@@ -89,9 +91,13 @@ class TestNoteEditDelete(TestCase):
         self.assertRedirects(response, self.success_url)
         self.note.refresh_from_db()
         self.assertEqual(self.note.text, self.NEW_NOTE_TEXT)
+        self.assertEqual(self.note.title, self.NEW_NOTE_TITLE)
+        self.assertEqual(self.note.slug, self.NEW_NOTE_SLUG)
 
     def test_user_cant_edit_note_of_another_user(self):
         response = self.reader_client.post(self.edit_url, data=self.form_data)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
         self.note.refresh_from_db()
         self.assertEqual(self.note.text, self.NOTE_TEXT)
+        self.assertEqual(self.note.title, self.NOTE_TITLE)
+        self.assertEqual(self.note.slug, self.NOTE_SLUG)

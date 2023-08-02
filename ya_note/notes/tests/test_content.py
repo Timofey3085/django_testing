@@ -29,14 +29,17 @@ class TestHomePage(TestCase):
 
     def test_notes_list_for_different_users(self):
         for user, note_in_list in self.users:
-            self.client.force_login(user)
-            response = self.client.get(self.list_url)
-            object_list = response.context['object_list']
-            self.assertEqual((self.note in object_list), note_in_list)
+            with self.subTest(client=user):
+                self.client.force_login(user)
+                response = self.client.get(self.list_url)
+                object_list = response.context['object_list']
+                self.assertEqual((self.note in object_list), note_in_list)
 
     def test_pages_contains_form(self):
-        self.client.force_login(self.author)
-        response = self.client.get(self.add_url)
-        self.assertIn('form', response.context)
-        response = self.client.get(self.edit_url)
-        self.assertIn('form', response.context)
+        for name in self.users:
+            with self.subTest(client=name):
+                self.client.force_login(self.author)
+                response = self.client.get(self.add_url)
+                self.assertIn('form', response.context)
+                response = self.client.get(self.edit_url)
+                self.assertIn('form', response.context)

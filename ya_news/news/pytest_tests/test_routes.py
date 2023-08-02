@@ -7,6 +7,7 @@ from pytest_django.asserts import assertRedirects
 
 @pytest.mark.django_db
 def test_home_availability_for_anonymous_user(client):
+    '''Тест доступности домашней страницы анонимному пользователю.'''
     url = reverse('news:home')
     response = client.get(url)
     assert response.status_code == HTTPStatus.OK
@@ -18,6 +19,7 @@ def test_home_availability_for_anonymous_user(client):
     ('news:home', 'users:login', 'users:logout', 'users:signup')
 )
 def test_pages_availability_for_anonymous_user(client, name):
+    '''Тест доступности страниц анонимному пользователю.'''
     url = reverse(name)
     response = client.get(url)
     assert response.status_code == HTTPStatus.OK
@@ -30,6 +32,7 @@ def test_pages_availability_for_anonymous_user(client, name):
     ),
 )
 def test_detail_availability_for_anonymous_user(client, name, args):
+    '''Тест на доступность сведений для анонимного пользователя.'''
     url = reverse(name, args=args)
     response = client.get(url)
     assert response.status_code == HTTPStatus.OK
@@ -49,6 +52,7 @@ def test_detail_availability_for_anonymous_user(client, name, args):
 def test_pages_availability_for_different_users(
         parametrized_client, url, comment, expected_status
 ):
+    '''Тест на доступность страниц для пользователей.'''
     url = reverse(url, args=(comment.id,))
     response = parametrized_client.get(url)
     assert response.status_code == expected_status
@@ -62,6 +66,7 @@ def test_pages_availability_for_different_users(
     ),
 )
 def test_redirects(client, name, args):
+    '''Тест редиректов.'''
     login_url = reverse('users:login')
     url = reverse(name, args=args)
     expected_url = f'{login_url}?next={url}'

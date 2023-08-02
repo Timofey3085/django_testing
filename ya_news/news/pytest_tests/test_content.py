@@ -10,6 +10,7 @@ from django.conf import settings
     (('news:home', pytest.lazy_fixture('list_news')),),
 )
 def test_news_count(client, name, list):
+    '''Тест колличества новостей.'''
     response = client.get(reverse(name))
     object_list = response.context['object_list']
     news_count = len(object_list)
@@ -29,6 +30,7 @@ def test_news_count(client, name, list):
     ),
 )
 def test_comments_order(client, name, args, list_comments):
+    '''Тест упорядочивания комментариев.'''
     url = reverse(name, args=args)
     response = client.get(url)
     assert 'news' in response.context
@@ -46,6 +48,7 @@ def test_comments_order(client, name, args, list_comments):
     ),
 )
 def test_anonymous_client_has_no_form(client, name, args, form):
+    '''Тест отстутсвия формы аноноимного пользователя.'''
     url = reverse(name, args=args)
     response = client.get(url)
     assert 'form' not in response.context
@@ -65,6 +68,7 @@ def test_authorized_client_has_form(client,
                                     args,
                                     form,
                                     parametrized_client):
+    '''Тест наличия формы авторизированного пользователя.'''
     url = reverse(name, args=args)
     response = client.get(url)
     assert 'form' in response.context
