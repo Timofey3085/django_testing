@@ -54,21 +54,19 @@ def test_anonymous_client_has_no_form(client, name, args, form):
     assert 'form' not in response.context
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize(
-    'name, args, form, parametrized_client',
+    'parametrized_client, form_on_page',
     (
-        ('news:detail',
-         pytest.lazy_fixture('slug_for_news'),
-         pytest.lazy_fixture('form_data'),
-         pytest.lazy_fixture('author_client')),
-    ),
+        (pytest.lazy_fixture('author_client'), True),
+        (pytest.lazy_fixture('client'), False),
+    )
 )
-def test_authorized_client_has_form(client,
-                                    name,
-                                    args,
-                                    form,
-                                    parametrized_client):
-    '''Тест наличия формы авторизированного пользователя.'''
-    url = reverse(name, args=args)
-    response = client.get(url)
-    assert 'form' in response.context
+def test_pages_contain_form_for_users(
+        parametrized_client, form_on_page, news_id_for_args
+):
+    '''Тест доступности формы авторизованного пользователя.'''
+    url = reverse('news:detail', args=news_id_for_args)
+    response = parametrized_client.get(url)
+    form_in_context = 'form' in response.context
+    assert form_in_context is form_on_page
