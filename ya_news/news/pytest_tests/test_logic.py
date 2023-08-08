@@ -8,12 +8,10 @@ from news.forms import BAD_WORDS, WARNING
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-        'parametrized_client, expected_status',
-        (
-            (pytest.lazy_fixture('client'), False),
-            (pytest.lazy_fixture('author_client'), True)
-        ),
-    )
+    'parametrized_client, expected_status',
+    ((pytest.lazy_fixture('client'), False),
+     (pytest.lazy_fixture('author_client'), True)),
+)
 def test_user_can_create_note(parametrized_client, expected_status,
                               form_data, slug_for_news):
     '''Тест создания заметки пользователя.'''
