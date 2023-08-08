@@ -6,25 +6,23 @@ from pytest_django.asserts import assertRedirects, assertFormError
 from news.forms import BAD_WORDS, WARNING
 
 
-def test_user_can_create_note(author_client, author, form_data, slug_for_news):
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+        'parametrized_client, expected_status',
+        (
+            (pytest.lazy_fixture('client'), False),
+            (pytest.lazy_fixture('author_client'), True)
+        ),
+    )
+def test_user_can_create_note(parametrized_client, expected_status,
+                              form_data, slug_for_news):
     '''Тест создания заметки пользователя.'''
     url = reverse('news:detail', args=slug_for_news)
-    response = author_client.post(url, data=form_data)
-    assertRedirects(response, url + '#comments')
-    assert Comment.objects.count() == 1
-    new_comment = Comment.objects.get()
-    assert new_comment.text == form_data['text']
-
-
-@pytest.mark.django_db
-def test_anonymous_user_cant_create_comment(client, form_data, slug_for_news):
-    '''Тест создания заметки анонимного пользователя.'''
-    url = reverse('news:detail', args=slug_for_news)
-    response = client.post(url, data=form_data)
-    login_url = reverse('users:login')
-    expected_url = f'{login_url}?next={url}'
-    assertRedirects(response, expected_url)
-    assert Comment.objects.count() == 0
+    before = Comment.objects.count()
+    response = parametrized_client.post(url, data=form_data)
+    assert response.status_code == HTTPStatus.FOUND
+    after = Comment.objects.count()
+    assert (before != after) == expected_status
 
 
 def test_user_cant_use_bad_words(author_client, form_data, slug_for_news):
@@ -42,6 +40,19 @@ def test_user_cant_use_bad_words(author_client, form_data, slug_for_news):
     assert comments_count == 0
 
 
+@pytest.mark.django_db
+def test_anonymous_user_cant_create_comment(client, form_data, slug_for_news):
+    '''Тест создания заметки анонимного пользователя.'''
+    url = reverse('news:detail', args=slug_for_news)
+    response = client.post(url, data=form_data)
+    login_url = reverse('users:login')
+    expected_url = f'{login_url}?next={url}'
+    assertRedirects(response, expected_url)
+    assert Comment.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures('comment')
 def test_author_can_delete_comment(
         author_client,
         slug_for_comment,

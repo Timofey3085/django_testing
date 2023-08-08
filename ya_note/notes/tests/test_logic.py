@@ -1,5 +1,6 @@
 from http import HTTPStatus
-
+from notes.forms import WARNING
+from pytils.translit import slugify
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -12,6 +13,8 @@ class TestNoteCreations(TestCase):
     NOTE_TEXT = "Текст"
     NOTE_TITLE = "Заголовок"
     NOTE_SLUG = "Slug"
+    ADD_NOTE_URL = reverse('notes:add')
+    NOTE_URL_SUC = reverse('notes:success')
 
     @classmethod
     def setUpTestData(cls):
@@ -41,6 +44,25 @@ class TestNoteCreations(TestCase):
         self.assertEqual(note.slug, self.NOTE_SLUG)
         self.assertEqual(note.title, self.NOTE_TITLE)
         self.assertEqual(note.author, self.user)
+
+    def test_slug_must_be_unique(self):
+        self.client.force_login(self.user)
+        self.client.post(self.ADD_NOTE_URL, data=self.form_data)
+        response = self.client.post(self.ADD_NOTE_URL, data=self.form_data)
+        Warning = self.form_data['slug'] + WARNING
+        self.assertFormError(response, form='form',
+                             field='slug', errors=Warning)
+
+    def test_empty_slug(self):
+        self.form_data.pop('slug')
+        response = self.auth_client.post(self.ADD_NOTE_URL,
+                                         data=self.form_data)
+        self.assertRedirects(response, self.NOTE_URL_SUC)
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+        slugify_slug = slugify(self.form_data['title'])
+        note_slug = Note.objects.get(slug=slugify_slug)
+        self.assertEqual(slugify_slug, note_slug.slug)
 
 
 class TestNoteEditDelete(TestCase):
