@@ -1,6 +1,4 @@
 from http import HTTPStatus
-from notes.forms import WARNING
-from pytils.translit import slugify
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
