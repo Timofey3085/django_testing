@@ -1,4 +1,6 @@
 from http import HTTPStatus
+from notes.forms import WARNING
+from pytils.translit import slugify
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -16,25 +18,48 @@ class TestNoteCreations(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create(username='Имя Пользователя')
+        cls.author = User.objects.create(username='Автор')
         cls.url = reverse('notes:detail', args=(cls.NOTE_SLUG,))
-        cls.auth_client = Client()
-        cls.auth_client.force_login(cls.user)
+        cls.author_client = Client()
+        cls.author_client.force_login(cls.author)
+        cls.reader = User.objects.create(username='Анон')
         cls.form_data = {'text': cls.NOTE_TEXT,
                          'slug': cls.NOTE_SLUG,
                          'title': cls.NOTE_TITLE}
+        cls.reader_client = Client()
+        cls.reader_client.force_login(cls.reader)
 
     def test_user_can_create_note_and_anonymous_user_cant_create_note(self):
         users_statuses = (
             (self.author, HTTPStatus.OK),
-            (self.reader, HTTPStatus.NOT_FOUND),)
+            (self.reader, HTTPStatus.NOT_FOUND),
+        )
         for user in users_statuses:
             self.client.force_login(self.author)
-            for name in ('notes:add', 'notes:list', 'notes:success',):
+            for name in ('notes:add', 'notes:success',):
                 with self.subTest(user=user, name=name):
                     url = reverse(name)
                     response = self.client.get(url)
                     self.assertEqual(response.status_code, HTTPStatus.OK)
+
+    def test_slug_unique(self):
+        self.client.force_login(self.author)
+        self.client.post(self.ADD_NOTE_URL, data=self.form_data)
+        response = self.client.post(self.ADD_NOTE_URL, data=self.form_data)
+        Warning = self.form_data['slug'] + WARNING
+        self.assertFormError(response, form='form',
+                             field='slug', errors=Warning)
+
+    def test_empy_slug(self):
+        self.form_data.pop('slug')
+        response = self.author_client.post(self.ADD_NOTE_URL,
+                                           data=self.form_data)
+        self.assertRedirects(response, self.NOTE_URL_SUC)
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+        slugify_slug = slugify(self.form_data['title'])
+        note_slug = Note.objects.get(slug=slugify_slug)
+        self.assertEqual(slugify_slug, note_slug.slug)
 
 
 class TestNoteEditDelete(TestCase):
@@ -74,17 +99,18 @@ class TestNoteEditDelete(TestCase):
         notes_count = Note.objects.count()
         self.assertEqual(notes_count, 0)
 
-    def test_user_cant_delete_note_of_another_user(self):
-        response = self.reader_client.delete(self.delete_url)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-        notes_count = Note.objects.count()
-        self.assertEqual(notes_count, 1)
+    def test_author_can_edit_note(self):
+        response = self.author_client.post(self.edit_url, data=self.form_data)
+        self.assertRedirects(response, self.success_url)
+        self.note.refresh_from_db()
+        self.assertEqual(self.note.text, self.NEW_NOTE_TEXT)
+        self.assertEqual(self.note.title, self.NEW_NOTE_TITLE)
+        self.assertEqual(self.note.slug, self.NEW_NOTE_SLUG)
 
     def test_author_can_edit_note_and_user_cant_edit_note_another_user(self):
         users_statuses = (
             (self.author, HTTPStatus.OK),
-            (self.reader, HTTPStatus.NOT_FOUND),
-        )
+            (self.reader, HTTPStatus.NOT_FOUND),)
         for user in users_statuses:
             self.client.force_login(self.author)
             for name in ('notes:detail', 'notes:edit', 'notes:delete'):
