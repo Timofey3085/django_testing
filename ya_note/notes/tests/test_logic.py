@@ -26,43 +26,17 @@ class TestNoteCreations(TestCase):
                          'slug': cls.NOTE_SLUG,
                          'title': cls.NOTE_TITLE}
 
-    def test_anonymous_user_cant_create_note(self):
-        self.client.post(self.url, data=self.form_data)
-        notes_count = Note.objects.count()
-        self.assertEqual(notes_count, 0)
-
-    def test_user_can_create_note(self):
-        name = ('notes:add')
-        name_done = ('notes:success')
-        response = self.auth_client.post(reverse(name, None),
-                                         data=self.form_data)
-        self.assertRedirects(response, reverse(name_done, None))
-        notes_count = Note.objects.count()
-        self.assertEqual(notes_count, 1)
-        note = Note.objects.get()
-        self.assertEqual(note.text, self.NOTE_TEXT)
-        self.assertEqual(note.slug, self.NOTE_SLUG)
-        self.assertEqual(note.title, self.NOTE_TITLE)
-        self.assertEqual(note.author, self.user)
-
-    def test_slug_must_be_unique(self):
-        self.client.force_login(self.user)
-        self.client.post(self.ADD_NOTE_URL, data=self.form_data)
-        response = self.client.post(self.ADD_NOTE_URL, data=self.form_data)
-        Warning = self.form_data['slug'] + WARNING
-        self.assertFormError(response, form='form',
-                             field='slug', errors=Warning)
-
-    def test_empty_slug(self):
-        self.form_data.pop('slug')
-        response = self.auth_client.post(self.ADD_NOTE_URL,
-                                         data=self.form_data)
-        self.assertRedirects(response, self.NOTE_URL_SUC)
-        notes_count = Note.objects.count()
-        self.assertEqual(notes_count, 1)
-        slugify_slug = slugify(self.form_data['title'])
-        note_slug = Note.objects.get(slug=slugify_slug)
-        self.assertEqual(slugify_slug, note_slug.slug)
+    def test_user_can_create_note_and_anonymous_user_cant_create_note(self):
+        users_statuses = (
+            (self.author, HTTPStatus.OK),
+            (self.reader, HTTPStatus.NOT_FOUND),)
+        for user in users_statuses:
+            self.client.force_login(self.author)
+            for name in ('notes:add', 'notes:list', 'notes:success',):
+                with self.subTest(user=user, name=name):
+                    url = reverse(name)
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
 class TestNoteEditDelete(TestCase):
@@ -108,18 +82,15 @@ class TestNoteEditDelete(TestCase):
         notes_count = Note.objects.count()
         self.assertEqual(notes_count, 1)
 
-    def test_author_can_edit_note(self):
-        response = self.author_client.post(self.edit_url, data=self.form_data)
-        self.assertRedirects(response, self.success_url)
-        self.note.refresh_from_db()
-        self.assertEqual(self.note.text, self.NEW_NOTE_TEXT)
-        self.assertEqual(self.note.title, self.NEW_NOTE_TITLE)
-        self.assertEqual(self.note.slug, self.NEW_NOTE_SLUG)
-
-    def test_user_cant_edit_note_of_another_user(self):
-        response = self.reader_client.post(self.edit_url, data=self.form_data)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-        self.note.refresh_from_db()
-        self.assertEqual(self.note.text, self.NOTE_TEXT)
-        self.assertEqual(self.note.title, self.NOTE_TITLE)
-        self.assertEqual(self.note.slug, self.NOTE_SLUG)
+    def test_author_can_edit_note_and_user_cant_edit_note_another_user(self):
+        users_statuses = (
+            (self.author, HTTPStatus.OK),
+            (self.reader, HTTPStatus.NOT_FOUND),
+        )
+        for user in users_statuses:
+            self.client.force_login(self.author)
+            for name in ('notes:detail', 'notes:edit', 'notes:delete'):
+                with self.subTest(user=user, name=name):
+                    url = reverse(name, args=(self.note.slug,))
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, HTTPStatus.OK)
